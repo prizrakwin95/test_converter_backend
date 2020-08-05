@@ -4,10 +4,12 @@ package app.valuteservice;
 import app.dao.ValuteDao;
 import app.dao.ValuteDaoImpl;
 import app.model.ValCurs;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
@@ -16,17 +18,28 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+
 @Service
 public class ValuteServiceImpl implements ValuteService {
     private ValuteDao valuteDao = new ValuteDaoImpl();
+
+    @Value(value = "${cbrf.url}")
+    private String url;
+    @Value(value = "${cbrf.attribute}")
+    private String attribute;
+
+
+    @PostConstruct()
+    private void init(){
+        getValute(new Date());
+    }
+
 
     public ValuteServiceImpl() {
     }
 
     @Override
     public ValCurs getValute(Date date) {
-        String uri = "http://www.cbr.ru/scripts/XML_daily.asp";
-
         if(date != null){
             ValCurs curs = valuteDao.readValute(date);
             if(curs != null){
@@ -34,7 +47,7 @@ public class ValuteServiceImpl implements ValuteService {
             }
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM/YYYY");
             String dateString = simpleDateFormat.format(date);
-            uri = uri+"?date_req="+dateString;
+            url = url+attribute+dateString;
         }else{
             date = new Date();
             ValCurs curs = valuteDao.readValute(date);
@@ -44,10 +57,11 @@ public class ValuteServiceImpl implements ValuteService {
         }
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM/YYYY");
         String dateString = simpleDateFormat.format(date);
+//        System.out.println(url);
 
         System.out.println("Запрашиваю текущий курс из ЦБРФ на день "+dateString);
         RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> responseEntity = restTemplate.getForEntity(uri,String.class);
+        ResponseEntity<String> responseEntity = restTemplate.getForEntity(url,String.class);
         ValCurs valCurs = null;
         try {
             JAXBContext jaxbContext = JAXBContext.newInstance(ValCurs.class);
